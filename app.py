@@ -1,98 +1,119 @@
-from flask import Flask, request, redirect, session, render_template_string
+from flask import Flask, render_template, request, redirect, session
 import sqlite3
 import os
 
 app = Flask(__name__)
-app.secret_key = "secret123"  # replace later if needed
+app.secret_key = "supersecret"
 
-DB = "database.db"
+DB_FILE = "project.db"
 
-# ---------- DB SETUP ----------
 def init_db():
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
+    if not os.path.exists(DB_FILE):
+        conn = sqlite3.connect(DB_FILE)
+        cur = conn.cursor()
+        # Users table
+        cur.execute("""
+        CREATE TABLE User (
+            userID INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL CHECK(role IN ('contractor', 'client'))
+        )""")
+        # Company table
+        cur.execute("""
+        CREATE TABLE Company (
+            companyID INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            serviceType TEXT,
+            location TEXT
+        )""")
+        # Contractor table
+        cur.execute("""
+        CREATE TABLE Contractor (
+            contractorID INTEGER PRIMARY KEY AUTOINCREMENT,
+            fullName TEXT NOT NULL,
+            email TEXT,
+            phone TEXT,
+            companyID INTEGER,
+            FOREIGN KEY (companyID) REFERENCES Company(companyID)
+        )""")
+        conn.commit()
+        conn.close()
+        print("Database initialized.")
 
-    # Users
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE,
-        password TEXT
-    )
-    """)
+def get_db():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-    # Contractors example table
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS contractors (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT
-    )
-    """)
-
+# --- User utilities ---
+def create_user(username, password, role):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO User (username, password, role) VALUES (?, ?, ?)",
+                (username, password, role))
     conn.commit()
     conn.close()
 
-# ---------- CREATE USER HELPER ----------
-def create_user(username, password):
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-    c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
-    conn.commit()
-    conn.close()
-    print(f"Created user {username}")
-
-# ---------- ROUTES ----------
-
+# --- Routes ---
 @app.route("/")
-def home():
-    if "user_id" in session:
-        return "Logged in! Go to /contractors"
-    return "Not logged in. Go to /login"
+def index():
+    return redirect("/login")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    form = """
-    <h2>Login</h2>
-    <form method='POST'>
-      Username: <input name='username'><br>
-      Password: <input type='password' name='password'><br>
-      <button type='submit'>Login</button>
-    </form>
-    """
     if request.method == "POST":
-        u = request.form["username"]
-        p = request.form["password"]
-
-        conn = sqlite3.connect(DB)
-        c = conn.cursor()
-        c.execute("SELECT id FROM users WHERE username=? AND password=?", (u, p))
-        user = c.fetchone()
-        conn.close()
-
+        username = request.form["username"]
+        password = request.form["password"]
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM User WHERE username=? AND password=?", (username, password))
+        user = cur.fetchone()
         if user:
-            session["user_id"] = user[0]
-            return redirect("/contractors")
-        else:
-            return form + "<p style='color:red;'>Invalid credentials</p>"
+            session["user_id"] = user["userID"]
+            session["role"] = user["role"]
+            return redirect("/companies")
+        return "Invalid credentials"
+    return render_template("login.html")
 
-    return form
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
 
-@app.route("/contractors")
-def contractors():
+@app.route("/companies")
+def list_companies():
     if "user_id" not in session:
         return redirect("/login")
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM Company")
+    companies = cur.fetchall()
+    return render_template("companies.html", companies=companies, role=session["role"])
 
-    conn = sqlite3.connect(DB)
-    c = conn.cursor()
-    rows = c.execute("SELECT id, name FROM contractors").fetchall()
-    conn.close()
+@app.route("/companies/add", methods=["POST"])
+def add_company():
+    if session.get("role") != "client":
+        return "Not allowed"
+    name = request.form["name"]
+    serviceType = request.form["serviceType"]
+    location = request.form["location"]
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO Company (name, serviceType, location) VALUES (?, ?, ?)",
+                (name, serviceType, location))
+    conn.commit()
+    return redirect("/companies")
 
-    html = "<h2>Contractors</h2><ul>"
-    for r in rows:
-        html += f"<li>{r[1]} (id {r[0]})</li>"
-    html += "</ul>"
-
-    return html
+@app.route("/companies/delete/<int:company_id>")
+def delete_company(company_id):
+    if session.get("role") != "client":
+        return "Not allowed"
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM Company WHERE companyID=?", (company_id,))
+    conn.commit()
+    return redirect("/companies")
 
 if __name__ == "__main__":
     init_db()

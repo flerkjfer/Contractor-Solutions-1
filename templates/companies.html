@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Companies</h1>
+
+{% if role == "client" %}
+<h2>Add Company</h2>
+<form method="post" action="/companies/add">
+    <p>Name: <input type="text" name="name"></p>
+    <p>Service Type: <input type="text" name="serviceType"></p>
+    <p>Location: <input type="text" name="location"></p>
+    <p><input type="submit" value="Add Company"></p>
+</form>
+{% endif %}
+
+<h2>Existing Companies</h2>
+<table border="1">
+    <tr>
+        <th>ID</th><th>Name</th><th>Service Type</th><th>Location</th>
+        {% if role == "client" %}<th>Actions</th>{% endif %}
+    </tr>
+    {% for c in companies %}
+    <tr>
+        <td>{{ c.companyID }}</td>
+        <td>{{ c.name }}</td>
+        <td>{{ c.serviceType }}</td>
+        <td>{{ c.location }}</td>
+        {% if role == "client" %}
+        <td><a href="/companies/delete/{{ c.companyID }}">Delete</a></td>
+        {% endif %}
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

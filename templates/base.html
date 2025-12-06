@@ -1,16 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Contractor System</title>
+    <title>Contractor App</title>
 </head>
 <body>
-    <p>
-        <a href="/">Home</a> |
+    <nav>
         <a href="/login">Login</a> |
-        <a href="/contractors">Contractors</a>
-    </p>
+        <a href="/help">Help</a> |
+        <a href="/register">Register</a> |
+        <a href="/forgot">Forgot Password</a> |
+        {% if session.user_id %}
+            <a href="/logout">Logout</a>
+        {% endif %}
+    </nav>
     <hr>
-
     {% block content %}{% endblock %}
 </body>
 </html>
