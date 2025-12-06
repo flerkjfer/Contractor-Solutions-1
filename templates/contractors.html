@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Contractors</h2>
+
+<form method="POST" action="/add_contractor">
+    <input name="name" placeholder="Name">
+    <input name="skill" placeholder="Skill">
+    <button type="submit">Add</button>
+</form>
+
+<table border="1" cellpadding="5" cellspacing="0">
+    <tr><th>ID</th><th>Name</th><th>Skill</th><th>Action</th></tr>
+    {% for c in contractors %}
+    <tr>
+        <td>{{ c.id }}</td>
+        <td>{{ c.name }}</td>
+        <td>{{ c.skill }}</td>
+        <td><a href="/delete_contractor/{{ c.id }}">Delete</a></td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}
