@@ -2,11 +2,11 @@
 {% block content %}
 <h2>Edit Job Request</h2>
 <form method="POST">
-    <label>Service:</label>
+    <label>Service:</label><br>
     <input type="text" name="service" value="{{ job.service }}" required><br><br>
 
-    <label>Company:</label>
-    <select name="company_id" required>
+    <label>Company:</label><br>
+    <select name="companyID" required>
         {% for c in companies %}
         <option value="{{ c.companyID }}" {% if c.companyID == job.companyID %}selected{% endif %}>
             {{ c.name }}
