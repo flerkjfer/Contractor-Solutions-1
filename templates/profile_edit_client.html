@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Edit Client Profile</h1>
+<form method="post">
+    <p><label>First name:</label><br><input name="firstName" required value="{{ profile['firstName'] }}"></p>
+    <p><label>Last name:</label><br><input name="lastName" required value="{{ profile['lastName'] }}"></p>
+    <p><label>Street number:</label><br><input name="streetNumber" value="{{ profile['streetNumber'] }}"></p>
+    <p><label>Street name:</label><br><input name="streetName" value="{{ profile['streetName'] }}"></p>
+    <p><label>Apt number:</label><br><input name="aptNumber" value="{{ profile['aptNumber'] }}"></p>
+    <p><label>Address (optional extra):</label><br><input name="address" value="{{ profile['address'] }}"></p>
+    <p><label>City:</label><br><input name="city" value="{{ profile['city'] }}"></p>
+    <p><label>State (2 chars):</label><br><input name="state" value="{{ profile['state'] }}"></p>
+    <p><label>ZIP:</label><br><input name="zip" value="{{ profile['zip'] }}"></p>
+    <p><button type="submit">Save Profile</button></p>
+</form>
+{% endblock %}

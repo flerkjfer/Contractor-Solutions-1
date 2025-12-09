@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Job Requests</h2>
+<table border="1" cellpadding="5" cellspacing="0">
+    <tr>
+        <th>Job ID</th>
+        <th>Service</th>
+        <th>Status</th>
+        <th>Client</th>
+        <th>Company</th>
+        <th>Date Posted</th>
+        <th>Date Fulfilled</th>
+    </tr>
+    {% for job in jobs %}
+    <tr>
+        <td>{{ job.jobID }}</td>
+        <td>{{ job.service }}</td>
+        <td>{{ job.status }}</td>
+        <td>{{ job.clientName }}</td>
+        <td>{{ job.companyName or '' }}</td>
+        <td>{{ job.date_posted }}</td>
+        <td>{{ job.date_fulfilled or '' }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}
