@@ -79,6 +79,51 @@ def init_db():
         FOREIGN KEY(companyID) REFERENCES Company(companyID)
     );""")
 
+    # Transactions table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS Transactions (
+        transactionID INTEGER PRIMARY KEY AUTOINCREMENT,
+        jobID INTEGER NOT NULL,
+        clientID INTEGER NOT NULL,
+        contractorID INTEGER NOT NULL,
+        amount REAL NOT NULL,
+        method TEXT CHECK(method IN ('Credit Card','Debit Card','PayPal','Cash','Check')) NOT NULL,
+        date DATE NOT NULL,
+        FOREIGN KEY(jobID) REFERENCES Job_Request(jobID),
+        FOREIGN KEY(clientID) REFERENCES Client(clientID),
+        FOREIGN KEY(contractorID) REFERENCES Contractor(contractorID)
+    );""")
+
+    # Reviews table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS Review (
+        reviewID INTEGER PRIMARY KEY AUTOINCREMENT,
+        jobID INTEGER NOT NULL,
+        clientID INTEGER NOT NULL,
+        contractorID INTEGER NOT NULL,
+        rating INTEGER CHECK(rating BETWEEN 1 AND 5),
+        comment TEXT,
+        date DATE NOT NULL,
+        FOREIGN KEY(jobID) REFERENCES Job_Request(jobID),
+        FOREIGN KEY(clientID) REFERENCES Client(clientID),
+        FOREIGN KEY(contractorID) REFERENCES Contractor(contractorID)
+    );""")
+
+    # Add earnings column to Contractor if it doesn't exist
+    try:
+        cur.execute("ALTER TABLE Contractor ADD COLUMN earnings REAL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+
+    # Add client_approval column to Job_Request if it doesn't exist
+    try:
+        cur.execute("""
+        ALTER TABLE Job_Request
+        ADD COLUMN client_approval TEXT CHECK(client_approval IN ('Pending','Approved','Denied')) DEFAULT 'Pending'
+        """)
+    except sqlite3.OperationalError:
+        pass
+
     conn.commit()
     conn.close()
 
@@ -418,24 +463,259 @@ def delete_jobrequest(job_id):
     return redirect(url_for("view_jobrequests"))
 
 # ----- Contractor updates job status -----
-@app.route("/jobrequests/complete/<int:job_id>")
-def mark_job_completed(job_id):
-    if "user_id" not in session:
-        return redirect("/login")
-    if session.get("role") != "contractor":
-        return "Only contractors can complete jobs", 403
+@app.route("/jobrequests/complete/<int:job_id>", methods=["GET", "POST"])
+def complete_job(job_id):
+    if session.get("role") != "client":
+        return "Access denied", 403
 
+    client_id = get_client_id(session["user_id"])
     conn = get_db()
     cur = conn.cursor()
-    # Mark job completed and set date_fulfilled
+    cur.execute("SELECT * FROM Job_Request WHERE jobID=? AND clientID=?", (job_id, client_id))
+    job = cur.fetchone()
+    if not job or job["status"] != "In Progress":
+        conn.close()
+        return "Job not available", 400
+
+    if request.method == "POST":
+        rating = int(request.form["rating"])
+        review_text = request.form.get("review")
+        payment = min(float(request.form["payment"]), 100000)
+
+        contractor_id = job["contractorID"]
+
+        # Insert review
+        cur.execute("""
+            INSERT INTO Review (jobID, clientID, contractorID, rating, comment, date)
+            VALUES (?, ?, ?, ?, ?, DATE('now'))
+        """, (job_id, client_id, contractor_id, rating, review_text))
+
+        # Update contractor earnings
+        cur.execute("UPDATE Contractor SET earnings = earnings + ? WHERE contractorID=?", (payment, contractor_id))
+
+        # Update job status
+        cur.execute("UPDATE Job_Request SET status='Completed' WHERE jobID=?", (job_id,))
+
+        # Update contractor average rating
+        cur.execute("SELECT AVG(rating) as avg_rating FROM Review WHERE contractorID=?", (contractor_id,))
+        avg = cur.fetchone()["avg_rating"]
+        cur.execute("UPDATE Contractor SET rating=? WHERE contractorID=?", (avg, contractor_id))
+
+        conn.commit()
+        conn.close()
+        return redirect(url_for("client_jobs"))
+
+    conn.close()
+    return render_template("complete_job.html", job=job)
+
+# -------------------------------
+# Client approves or denies job completion
+# -------------------------------
+@app.route("/jobrequests/approval/<int:job_id>", methods=["GET", "POST"])
+def client_approval(job_id):
+    if "user_id" not in session or session.get("role") != "client":
+        return redirect("/login")
+
+    client_id = get_client_id(session["user_id"])
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM Job_Request WHERE jobID=? AND clientID=?", (job_id, client_id))
+    job = cur.fetchone()
+    if not job:
+        conn.close()
+        return "Job not found", 404
+
+    if request.method == "POST":
+        decision = request.form.get("decision")
+        if decision not in ("Approved","Denied"):
+            conn.close()
+            return "Invalid decision", 400
+        cur.execute("UPDATE Job_Request SET client_approval=? WHERE jobID=?", (decision, job_id))
+        conn.commit()
+        conn.close()
+        if decision == "Approved":
+            return redirect(f"/jobrequests/payment/{job_id}")
+        return redirect("/jobrequests")
+    
+    conn.close()
+    return render_template("client_approval.html", job=job)
+
+# -------------------------------
+# Client pays contractor
+# -------------------------------
+@app.route("/jobrequests/payment/<int:job_id>", methods=["GET", "POST"])
+def client_payment(job_id):
+    if "user_id" not in session or session.get("role") != "client":
+        return redirect("/login")
+
+    client_id = get_client_id(session["user_id"])
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM Job_Request WHERE jobID=? AND clientID=?", (job_id, client_id))
+    job = cur.fetchone()
+    if not job or job["client_approval"] != "Approved":
+        conn.close()
+        return "Payment not allowed", 403
+
+    contractor_id = job["contractorID"]
+    if not contractor_id:
+        conn.close()
+        return "No contractor assigned", 400
+
+    if request.method == "POST":
+        amount = float(request.form["amount"])
+        method = request.form["method"]
+        cur.execute("""
+            INSERT INTO Transaction (jobID, clientID, contractorID, amount, method, date)
+            VALUES (?, ?, ?, ?, ?, DATE('now'))
+        """, (job_id, client_id, contractor_id, amount, method))
+        # Update contractor earnings
+        cur.execute("UPDATE Contractor SET earnings = earnings + ? WHERE contractorID=?", (amount, contractor_id))
+        conn.commit()
+        conn.close()
+        return redirect(f"/jobrequests/review/{job_id}")
+
+    conn.close()
+    return render_template("client_payment.html", job=job)
+
+# -------------------------------
+# Client leaves a review
+# -------------------------------
+@app.route("/jobrequests/review/<int:job_id>", methods=["GET", "POST"])
+def client_review(job_id):
+    if "user_id" not in session or session.get("role") != "client":
+        return redirect("/login")
+
+    client_id = get_client_id(session["user_id"])
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM Job_Request WHERE jobID=? AND clientID=?", (job_id, client_id))
+    job = cur.fetchone()
+    if not job:
+        conn.close()
+        return "Job not found", 404
+
+    contractor_id = job["contractorID"]
+    if request.method == "POST":
+        rating = int(request.form["rating"])
+        comment = request.form.get("comment")
+        cur.execute("""
+            INSERT INTO Review (jobID, clientID, contractorID, rating, comment, date)
+            VALUES (?, ?, ?, ?, ?, DATE('now'))
+        """, (job_id, client_id, contractor_id, rating, comment))
+        # Update contractor average rating
+        cur.execute("""
+            SELECT AVG(rating) as avg_rating FROM Review WHERE contractorID=?
+        """, (contractor_id,))
+        avg = cur.fetchone()["avg_rating"]
+        cur.execute("UPDATE Contractor SET rating=? WHERE contractorID=?", (avg, contractor_id))
+        conn.commit()
+        conn.close()
+        return redirect("/dashboard/client")
+
+    conn.close()
+    return render_template("client_review.html", job=job)
+
+# Contractor sees open jobs and their claimed jobs
+@app.route("/dashboard/contractor/jobs")
+def contractor_jobs():
+    if session.get("role") != "contractor":
+        return "Access denied", 403
+
+    contractor_id = get_contractor_id(session["user_id"])
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # Open jobs (not yet claimed)
     cur.execute("""
-        UPDATE Job_Request
-        SET status='Completed', date_fulfilled=DATE('now')
-        WHERE jobID=?
-    """, (job_id,))
+        SELECT jr.*, c.name AS companyName, cli.firstName || ' ' || cli.lastName AS clientName
+        FROM Job_Request jr
+        LEFT JOIN Company c ON jr.companyID = c.companyID
+        LEFT JOIN Client cli ON jr.clientID = cli.clientID
+        WHERE jr.status='Pending'
+        ORDER BY jr.date_posted DESC
+    """)
+    open_jobs = cur.fetchall()
+
+    # My claimed jobs
+    cur.execute("""
+        SELECT jr.*, c.name AS companyName, cli.firstName || ' ' || cli.lastName AS clientName
+        FROM Job_Request jr
+        LEFT JOIN Company c ON jr.companyID = c.companyID
+        LEFT JOIN Client cli ON jr.clientID = cli.clientID
+        WHERE jr.contractorID=?
+        ORDER BY jr.date_posted DESC
+    """, (contractor_id,))
+    my_jobs = cur.fetchall()
+    
+    conn.close()
+    return render_template("contractor_jobs.html", open_jobs=open_jobs, my_jobs=my_jobs)
+
+# Contractor claims a job
+@app.route("/jobrequests/claim/<int:job_id>")
+def claim_job(job_id):
+    if session.get("role") != "contractor":
+        return "Access denied", 403
+
+    contractor_id = get_contractor_id(session["user_id"])
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Only allow claiming pending/unassigned jobs
+    cur.execute("SELECT * FROM Job_Request WHERE jobID=? AND status='Pending'", (job_id,))
+    job = cur.fetchone()
+    if not job:
+        conn.close()
+        return "Job not available", 400
+
+    # Assign contractor and set status to in progress
+    cur.execute("UPDATE Job_Request SET contractorID=?, status='In Progress' WHERE jobID=?",
+                (contractor_id, job_id))
     conn.commit()
     conn.close()
-    return redirect("/dashboard/contractor")
+    return redirect(url_for("contractor_jobs"))
+
+@app.route("/dashboard/client/jobs")
+def client_jobs():
+    if session.get("role") != "client":
+        return "Access denied", 403
+    
+    client_id = get_client_id(session["user_id"])
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT jr.*, c.name AS companyName, ctr.firstName || ' ' || ctr.lastName AS contractorName
+        FROM Job_Request jr
+        LEFT JOIN Company c ON jr.companyID = c.companyID
+        LEFT JOIN Contractor ctr ON jr.contractorID = ctr.contractorID
+        WHERE jr.clientID=?
+        ORDER BY jr.date_posted DESC
+    """, (client_id,))
+    jobs = cur.fetchall()
+    conn.close()
+    return render_template("client_jobs.html", jobs=jobs)
+
+@app.route("/dashboard/contractor/ratings")
+def contractor_ratings():
+    if session.get("role") != "contractor":
+        return "Access denied", 403
+
+    contractor_id = get_contractor_id(session["user_id"])
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Contractor info
+    cur.execute("SELECT * FROM Contractor WHERE contractorID=?", (contractor_id,))
+    contractor = cur.fetchone()
+
+    # Reviews
+    cur.execute("SELECT r.*, c.firstName || ' ' || c.lastName AS clientName FROM Review r JOIN Client c ON r.clientID=c.clientID WHERE contractorID=?", (contractor_id,))
+    reviews = cur.fetchall()
+    conn.close()
+    return render_template("contractor_ratings.html", contractor=contractor, reviews=reviews)
+
+
+
 
 # -------------------------------
 # Helper Functions
@@ -455,6 +735,7 @@ def get_contractor_id(user_id):
     row = cur.fetchone()
     conn.close()
     return row["contractorID"] if row else None
+
 
 # -------------------------------
 # Run App

@@ -1,0 +1,12 @@
+<h2>{{ contractor.firstName }} {{ contractor.lastName }} - Ratings & Earnings</h2>
+<p>Average Rating: {{ contractor.rating or 'N/A' }}</p>
+<p>Total Earnings: ${{ contractor.earnings or 0 }}</p>
+
+<h3>Reviews:</h3>
+<ul>
+  {% for r in reviews %}
+    <li>
+      <strong>{{ r.clientName }}</strong>: {{ r.rating }}/5 - "{{ r.comment }}"
+    </li>
+  {% endfor %}
+</ul>

@@ -1,0 +1,24 @@
+<h2>Open Jobs</h2>
+<ul>
+  {% for job in open_jobs %}
+    <li>
+      Job #{{ job.jobID }} - {{ job.service }} with {{ job.clientName }}
+      <a href="{{ url_for('claim_job', job_id=job.jobID) }}">Claim Job</a>
+    </li>
+  {% else %}
+    <li>No open jobs available</li>
+  {% endfor %}
+</ul>
+
+<h2>My Claimed Jobs</h2>
+<ul>
+  {% for job in my_jobs %}
+    <li>
+      Job #{{ job.jobID }} - {{ job.service }} with {{ job.clientName }} (Status: {{ job.status }})
+    </li>
+  {% else %}
+    <li>You haven't claimed any jobs yet</li>
+  {% endfor %}
+</ul>
+
+<p><a href="{{ url_for('contractor_dashboard') }}">Back to Dashboard</a></p>

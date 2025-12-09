@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Job Completion Approval</h2>
+<p>Job ID: {{ job.jobID }} | Service: {{ job.service }}</p>
+
+<form method="post">
+    <button type="submit" name="decision" value="Approved">Approve Completion</button>
+    <button type="submit" name="decision" value="Denied">Deny Completion</button>
+</form>
+<p><a href="/jobrequests">Back to Job Requests</a></p>
+{% endblock %}

@@ -1,0 +1,20 @@
+<h2>My Jobs</h2>
+<ul>
+  {% for job in jobs %}
+    <li>
+      Job #{{ job.jobID }} - {{ job.service }}
+      {% if job.contractorName %}
+        (Claimed by: {{ job.contractorName }}, Status: {{ job.status }})
+        {% if job.status != 'Completed' %}
+          - <a href="{{ url_for('client_approval', job_id=job.jobID) }}">Mark as Complete</a>
+        {% endif %}
+      {% else %}
+        (Unclaimed)
+      {% endif %}
+    </li>
+  {% else %}
+    <li>You haven't posted any jobs yet.</li>
+  {% endfor %}
+</ul>
+
+<p><a href="{{ url_for('client_dashboard') }}">Back to Dashboard</a></p>
