@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Leave a Review</h2>
+<p>Job ID: {{ job.jobID }} | Service: {{ job.service }}</p>
+
+<form method="post">
+    <p>Rating (1-5): <input type="number" name="rating" min="1" max="5" required></p>
+    <p>Comment: <textarea name="comment"></textarea></p>
+    <button type="submit">Submit Review</button>
+</form>
+{% endblock %}
