@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Create Job Request</h2>
+<form method="post">
+    <p>
+        <label>Service:</label><br>
+        <input type="text" name="service" required>
+    </p>
+    <p>
+    <label>Company:</label><br>
+    <select name="companyID" required>
+        <option value="">--Select Company--</option>
+        {% for c in companies %}
+        <option value="{{ c.companyID }}">{{ c.name }} ({{ c.serviceType }})</option>
+        {% endfor %}
+    </select>
+</p>
+    <p><input type="submit" value="Submit Job Request"></p>
+</form>
+{% endblock %}

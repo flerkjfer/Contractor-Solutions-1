@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Contractor Dashboard</h2>
+
+<p>Hello, <strong>{{ profile.firstName }} {{ profile.lastName }}</strong>!</p>
+<p><a href="{{ url_for('edit_profile') }}">Edit Profile</a></p>
+<p><a href="{{ url_for('list_companies') }}">View Companies</a></p>
+<p><a href="{{ url_for('view_all_contractors') }}">See Other Contractors</a></p>
+<p><a href="{{ url_for('logout') }}">Logout</a></p>
+
+<hr>
+<h3>Companies</h3>
+<table border="1">
+    <tr>
+        <th>ID</th><th>Name</th><th>Service Type</th><th>Location</th>
+    </tr>
+    {% for c in companies %}
+    <tr>
+        <td>{{ c.companyID }}</td>
+        <td>{{ c.name }}</td>
+        <td>{{ c.serviceType }}</td>
+        <td>{{ c.location }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}
