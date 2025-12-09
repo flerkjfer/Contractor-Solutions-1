@@ -2,33 +2,35 @@
 {% block content %}
 <h2>Job Requests</h2>
 
-<table border="1">
-    <tr>
-        <th>Job ID</th>
-        <th>Company</th>
-        <th>Service</th>
-        <th>Status</th>
-        <th>Date Posted</th>
-        <th>Date Fulfilled</th>
-        {% if role == "client" %}<th>Actions</th>{% endif %}
-    </tr>
-    {% for j in jobrequests %}
-    <tr>
-        <td>{{ j.jobID }}</td>
-        <td>{{ j.company_name or "" }}</td>
-        <td>{{ j.service }}</td>
-        <td>{{ j.status }}</td>
-        <td>{{ j.date_posted }}</td>
-        <td>{{ j.date_fulfilled or "" }}</td>
-        {% if role == "client" %}
-        <td>
-            {% if j.status == "Pending" %}
-            <a href="{{ url_for('delete_jobrequest', job_id=j.jobID) }}">Delete</a>
-            {% endif %}
-        </td>
+<table border="1" cellpadding="5" cellspacing="0">
+<tr>
+    <th>Job ID</th>
+    <th>Service</th>
+    <th>Status</th>
+    <th>Company</th>
+    <th>Date Posted</th>
+    <th>Date Fulfilled</th>
+    {% if role == "client" %}<th>Actions</th>{% endif %}
+</tr>
+
+{% for j in jobrequests %}
+<tr>
+    <td>{{ j.jobID }}</td>
+    <td>{{ j.service }}</td>
+    <td>{{ j.status }}</td>
+    <td>{{ j.company_name or '' }}</td>
+    <td>{{ j.date_posted }}</td>
+    <td>{{ j.date_fulfilled or '' }}</td>
+    {% if role == "client" %}
+    <td>
+        {% if j.status == "Pending" %}
+        <a href="{{ url_for('delete_jobrequest', job_id=j.jobID) }}">Delete</a> |
+        <a href="{{ url_for('edit_jobrequest', job_id=j.jobID) }}">Edit</a>
         {% endif %}
-    </tr>
-    {% endfor %}
+    </td>
+    {% endif %}
+</tr>
+{% endfor %}
 </table>
 
 <p><a href="{{ url_for('client_dashboard') }}">Back to Dashboard</a></p>

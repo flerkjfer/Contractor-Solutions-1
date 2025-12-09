@@ -1,38 +1,36 @@
 from flask import Flask, render_template, request, redirect, session, url_for
 import sqlite3
-import os
 
 app = Flask(__name__)
 app.secret_key = "supersecret"
-
 DB_FILE = "project.db"
 
+# -------------------------------
+# Database Initialization
+# -------------------------------
 def init_db():
-    """Ensure all required tables exist."""
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
 
-    # Users table
+    # Users
     cur.execute("""
     CREATE TABLE IF NOT EXISTS User (
         userID INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         role TEXT NOT NULL CHECK(role IN ('contractor', 'client'))
-    );
-    """)
+    );""")
 
-    # Company table
+    # Companies
     cur.execute("""
     CREATE TABLE IF NOT EXISTS Company (
         companyID INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         serviceType TEXT,
         location TEXT
-    );
-    """)
+    );""")
 
-    # Contractor table
+    # Contractors
     cur.execute("""
     CREATE TABLE IF NOT EXISTS Contractor (
         contractorID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,10 +44,9 @@ def init_db():
         rating REAL,
         FOREIGN KEY(userID) REFERENCES User(userID),
         FOREIGN KEY(companyID) REFERENCES Company(companyID)
-    );
-    """)
+    );""")
 
-    # Client table
+    # Clients
     cur.execute("""
     CREATE TABLE IF NOT EXISTS Client (
         clientID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,10 +61,9 @@ def init_db():
         state CHAR(2),
         zip TEXT,
         FOREIGN KEY(userID) REFERENCES User(userID)
-    );
-    """)
+    );""")
 
-    # Job_Request table
+    # Job Requests
     cur.execute("""
     CREATE TABLE IF NOT EXISTS Job_Request (
         jobID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,19 +77,19 @@ def init_db():
         FOREIGN KEY(clientID) REFERENCES Client(clientID),
         FOREIGN KEY(contractorID) REFERENCES Contractor(contractorID),
         FOREIGN KEY(companyID) REFERENCES Company(companyID)
-    );
-    """)
+    );""")
 
     conn.commit()
     conn.close()
-    print("init_db: ensured tables exist.")
 
 def get_db():
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     return conn
 
-# --- User utilities ---
+# -------------------------------
+# User Utilities
+# -------------------------------
 def create_user(username, password, role):
     conn = get_db()
     cur = conn.cursor()
@@ -104,13 +100,16 @@ def create_user(username, password, role):
     conn.close()
     return user_id
 
-# --- Routes ---
+# -------------------------------
+# Routes
+# -------------------------------
 @app.route("/")
 def index():
     if "user_id" in session:
         return redirect("/dashboard")
     return redirect("/login")
 
+# ----- Auth -----
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -161,6 +160,7 @@ def logout():
     session.clear()
     return redirect("/login")
 
+# ----- Dashboard -----
 @app.route("/dashboard")
 def dashboard_redirect():
     if "user_id" not in session:
@@ -178,7 +178,6 @@ def client_dashboard():
     cur = conn.cursor()
     cur.execute("SELECT * FROM Client WHERE userID=?", (user_id,))
     profile = cur.fetchone()
-
     cur.execute("SELECT * FROM Company")
     companies = cur.fetchall()
     conn.close()
@@ -193,13 +192,12 @@ def contractor_dashboard():
     cur = conn.cursor()
     cur.execute("SELECT * FROM Contractor WHERE userID=?", (user_id,))
     profile = cur.fetchone()
-
     cur.execute("SELECT * FROM Company")
     companies = cur.fetchall()
     conn.close()
     return render_template("dashboard_contractor.html", profile=profile, companies=companies)
 
-# Profile edit
+# ----- Profile Edit -----
 @app.route("/profile/edit", methods=["GET", "POST"])
 def edit_profile():
     if "user_id" not in session:
@@ -257,7 +255,7 @@ def edit_profile():
         conn.close()
         return render_template("profile_edit_contractor.html", profile=profile)
 
-# Companies
+# ----- Companies -----
 @app.route("/companies")
 def list_companies():
     if "user_id" not in session:
@@ -295,7 +293,7 @@ def delete_company(company_id):
     conn.close()
     return redirect("/companies")
 
-# Contractors list
+# ----- Contractors -----
 @app.route("/contractors")
 def list_contractors():
     if "user_id" not in session:
@@ -307,7 +305,9 @@ def list_contractors():
     conn.close()
     return render_template("contractors.html", contractors=contractors)
 
-# --- Job Requests ---
+# -------------------------------
+# Job Requests
+# -------------------------------
 @app.route("/jobrequests")
 def view_jobrequests():
     if "user_id" not in session:
@@ -317,16 +317,16 @@ def view_jobrequests():
 
     conn = get_db()
     cur = conn.cursor()
-
-    # Get the clientID first
+    # Get clientID
     cur.execute("SELECT clientID FROM Client WHERE userID=?", (session["user_id"],))
     client_row = cur.fetchone()
     if not client_row:
         return "Client profile not found", 400
     client_id = client_row["clientID"]
 
+    # Only their own job requests
     cur.execute("""
-        SELECT jr.*, c.name AS company_name
+        SELECT jr.*, c.name AS companyName
         FROM Job_Request jr
         LEFT JOIN Company c ON jr.companyID = c.companyID
         WHERE jr.clientID=?
@@ -334,7 +334,7 @@ def view_jobrequests():
     """, (client_id,))
     jobrequests = cur.fetchall()
     conn.close()
-    return render_template("view_jobrequests.html", jobrequests=jobrequests)
+    return render_template("view_jobrequests.html", jobrequests=jobrequests, role="client")
 
 @app.route("/jobrequests/new", methods=["GET", "POST"])
 def create_jobrequest():
@@ -345,8 +345,6 @@ def create_jobrequest():
 
     conn = get_db()
     cur = conn.cursor()
-
-    # Get clientID from session user_id
     cur.execute("SELECT clientID FROM Client WHERE userID=?", (session["user_id"],))
     client_row = cur.fetchone()
     if not client_row:
@@ -354,7 +352,7 @@ def create_jobrequest():
     client_id = client_row["clientID"]
 
     if request.method == "POST":
-        company_id = request.form["companyID"]
+        company_id = request.form.get("companyID") or None
         service = request.form["service"]
         cur.execute("""
             INSERT INTO Job_Request (clientID, companyID, service, status, date_posted)
@@ -364,23 +362,103 @@ def create_jobrequest():
         conn.close()
         return redirect(url_for("view_jobrequests"))
 
-    # GET: show form
     cur.execute("SELECT * FROM Company")
     companies = cur.fetchall()
     conn.close()
     return render_template("job_request_new.html", companies=companies)
 
-@app.route("/clients")
-def view_all_clients():
+@app.route("/jobrequests/edit/<int:job_id>", methods=["GET", "POST"])
+def edit_jobrequest(job_id):
     if "user_id" not in session:
         return redirect("/login")
+    if session.get("role") != "client":
+        return "Only clients can edit job requests", 403
+
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM Client")
-    clients = cur.fetchall()
-    conn.close()
-    return render_template("view_clients.html", clients=clients)
+    # Check ownership
+    cur.execute("SELECT * FROM Job_Request WHERE jobID=?", (job_id,))
+    job = cur.fetchone()
+    if not job or job["clientID"] != get_client_id(session["user_id"]):
+        return "Access denied", 403
 
+    if request.method == "POST":
+        service = request.form["service"]
+        company_id = request.form.get("companyID") or None
+        cur.execute("""
+            UPDATE Job_Request SET service=?, companyID=? WHERE jobID=?
+        """, (service, company_id, job_id))
+        conn.commit()
+        conn.close()
+        return redirect(url_for("view_jobrequests"))
+
+    cur.execute("SELECT * FROM Company")
+    companies = cur.fetchall()
+    conn.close()
+    return render_template("edit_jobrequest.html", job=job, companies=companies)
+
+@app.route("/jobrequests/delete/<int:job_id>")
+def delete_jobrequest(job_id):
+    if "user_id" not in session:
+        return redirect("/login")
+    if session.get("role") != "client":
+        return "Only clients can delete job requests", 403
+
+    conn = get_db()
+    cur = conn.cursor()
+    # Check ownership
+    cur.execute("SELECT * FROM Job_Request WHERE jobID=?", (job_id,))
+    job = cur.fetchone()
+    if not job or job["clientID"] != get_client_id(session["user_id"]):
+        return "Access denied", 403
+
+    cur.execute("DELETE FROM Job_Request WHERE jobID=?", (job_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("view_jobrequests"))
+
+# ----- Contractor updates job status -----
+@app.route("/jobrequests/complete/<int:job_id>")
+def mark_job_completed(job_id):
+    if "user_id" not in session:
+        return redirect("/login")
+    if session.get("role") != "contractor":
+        return "Only contractors can complete jobs", 403
+
+    conn = get_db()
+    cur = conn.cursor()
+    # Mark job completed and set date_fulfilled
+    cur.execute("""
+        UPDATE Job_Request
+        SET status='Completed', date_fulfilled=DATE('now')
+        WHERE jobID=?
+    """, (job_id,))
+    conn.commit()
+    conn.close()
+    return redirect("/dashboard/contractor")
+
+# -------------------------------
+# Helper Functions
+# -------------------------------
+def get_client_id(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT clientID FROM Client WHERE userID=?", (user_id,))
+    row = cur.fetchone()
+    conn.close()
+    return row["clientID"] if row else None
+
+def get_contractor_id(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT contractorID FROM Contractor WHERE userID=?", (user_id,))
+    row = cur.fetchone()
+    conn.close()
+    return row["contractorID"] if row else None
+
+# -------------------------------
+# Run App
+# -------------------------------
 if __name__ == "__main__":
     init_db()
     app.run(debug=True)
