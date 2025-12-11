@@ -109,6 +109,21 @@ def init_db():
         FOREIGN KEY(contractorID) REFERENCES Contractor(contractorID)
     );""")
 
+    # Contractor claim requests table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS Contractor_Claim_Request (
+        requestID INTEGER PRIMARY KEY AUTOINCREMENT,
+        jobID INTEGER NOT NULL,
+        contractorID INTEGER NOT NULL,
+        status TEXT CHECK(status IN ('Pending', 'Accepted', 'Declined')) DEFAULT 'Pending',
+        date_requested DATE NOT NULL,
+        FOREIGN KEY(jobID) REFERENCES Job_Request(jobID),
+        FOREIGN KEY(contractorID) REFERENCES Contractor(contractorID)
+    );
+    """)
+
+
+
     # Add earnings column to Contractor if it doesn't exist
     try:
         cur.execute("ALTER TABLE Contractor ADD COLUMN earnings REAL DEFAULT 0")
@@ -238,12 +253,33 @@ def client_dashboard():
     user_id = session["user_id"]
     conn = get_db()
     cur = conn.cursor()
+
+    # Client profile
     cur.execute("SELECT * FROM Client WHERE userID=?", (user_id,))
     profile = cur.fetchone()
+
+    # Companies
     cur.execute("SELECT * FROM Company")
     companies = cur.fetchall()
+
+    # Pending contractor claim requests for this client's jobs
+    cur.execute("""
+        SELECT jc.*, c.firstName || ' ' || c.lastName AS contractorName, jr.service
+        FROM Contractor_Claim_Request jc
+        JOIN Contractor c ON jc.contractorID = c.contractorID
+        JOIN Job_Request jr ON jc.jobID = jr.jobID
+        WHERE jr.clientID=? AND jc.status='Pending'
+        ORDER BY jc.date_requested DESC
+    """, (profile["clientID"],))
+    pending_claims = cur.fetchall()
+
     conn.close()
-    return render_template("dashboard_client.html", profile=profile, companies=companies)
+    return render_template(
+        "dashboard_client.html",
+        profile=profile,
+        companies=companies,
+        contractor_requests=pending_claims
+    )
 
 @app.route("/dashboard/contractor")
 def contractor_dashboard():
@@ -731,6 +767,119 @@ def contractor_ratings():
     reviews = cur.fetchall()
     conn.close()
     return render_template("contractor_ratings.html", contractor=contractor, reviews=reviews)
+
+@app.route("/request_claim/<int:job_id>")
+def request_claim(job_id):
+    if session.get("role") != "contractor":
+        return "Access denied", 403
+
+    contractor_id = get_contractor_id(session["user_id"])
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Prevent duplicates
+    cur.execute("""
+        SELECT * FROM Contractor_Claim_Request
+        WHERE jobID=? AND contractorID=?
+    """, (job_id, contractor_id))
+    existing = cur.fetchone()
+
+    if existing:
+        conn.close()
+        return redirect("/dashboard/contractor/jobs")
+
+    # Insert new claim request
+    cur.execute("""
+        INSERT INTO Contractor_Claim_Request (jobID, contractorID, status, date_requested)
+        VALUES (?, ?, 'Pending', DATE('now'))
+    """, (job_id, contractor_id))
+
+    conn.commit()
+    conn.close()
+
+    return redirect("/dashboard/contractor/jobs")
+
+
+@app.route("/approve_contractor/<int:job_id>/<int:contractor_id>")
+def approve_contractor(job_id, contractor_id):
+    if session.get("role") != "client":
+        return "Access denied", 403
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Accept this contractor
+    cur.execute("""
+        UPDATE Contractor_Claim_Request
+        SET status='Accepted'
+        WHERE jobID=? AND contractorID=?
+    """, (job_id, contractor_id))
+
+    # Reject all others
+    cur.execute("""
+        UPDATE Contractor_Claim_Request
+        SET status='Declined'
+        WHERE jobID=? AND contractorID<>?
+    """, (job_id, contractor_id))
+
+    # Assign contractor to the job
+    cur.execute("""
+        UPDATE Job_Request
+        SET contractorID=?, status='In Progress'
+        WHERE jobID=?
+    """, (contractor_id, job_id))
+
+    conn.commit()
+    conn.close()
+    return redirect("/dashboard/client")
+
+@app.route("/reject_contractor/<int:job_id>/<int:contractor_id>")
+def reject_contractor(job_id, contractor_id):
+    if session.get("role") != "client":
+        return "Access denied", 403
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE Contractor_Claim_Request
+        SET status='Declined'
+        WHERE jobID=? AND contractorID=?
+    """, (job_id, contractor_id))
+
+    conn.commit()
+    conn.close()
+    return redirect("/dashboard/client")
+
+@app.route("/contractor_profile/<int:contractor_id>")
+def contractor_profile(contractor_id):
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Fetch contractor basic info
+    cur.execute("""
+        SELECT firstName, lastName, rating
+        FROM Contractor
+        WHERE contractorID=?
+    """, (contractor_id,))
+    contractor = cur.fetchone()
+
+    # Fetch all reviews with client names
+    cur.execute("""
+        SELECT r.comment, r.rating, r.date, c.firstName || ' ' || c.lastName AS clientName
+        FROM Review r
+        JOIN Client c ON r.clientID = c.clientID
+        WHERE r.contractorID=?
+        ORDER BY r.date DESC
+    """, (contractor_id,))
+    reviews = cur.fetchall()
+
+    conn.close()
+    return render_template(
+        "contractor_profile.html",
+        contractor=contractor,
+        reviews=reviews
+    )
 
 
 

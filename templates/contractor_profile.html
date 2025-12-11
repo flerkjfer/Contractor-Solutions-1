@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Contractor Profile</h2>
+
+<p><strong>{{ contractor.firstName }} {{ contractor.lastName }}</strong></p>
+<p>Average Rating: {{ contractor.rating or "No ratings yet" }}</p>
+
+<h3>Reviews</h3>
+<ul>
+{% for r in reviews %}
+    <li>
+        <strong>{{ r.clientName }}:</strong> {{ r.comment }} 
+        (Rating: {{ r.rating }}, Date: {{ r.date }})
+    </li>
+{% else %}
+    <li>No reviews yet</li>
+{% endfor %}
+</ul>
+
+<a href="{{ url_for('dashboard_redirect') }}">Back to Dashboard</a>
+{% endblock %}
