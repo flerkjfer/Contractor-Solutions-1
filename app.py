@@ -132,6 +132,23 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_client_id(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT clientID FROM Client WHERE userID=?", (user_id,))
+    row = cur.fetchone()
+    conn.close()
+    return row["clientID"] if row else None
+
+def get_contractor_id(user_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT contractorID FROM Contractor WHERE userID=?", (user_id,))
+    row = cur.fetchone()
+    conn.close()
+    return row["contractorID"] if row else None
+
+
 # -------------------------------
 # User Utilities
 # -------------------------------
@@ -566,7 +583,7 @@ def client_payment(job_id):
         amount = float(request.form["amount"])
         method = request.form["method"]
         cur.execute("""
-            INSERT INTO Transaction (jobID, clientID, contractorID, amount, method, date)
+            INSERT INTO Transactions (jobID, clientID, contractorID, amount, method, date)
             VALUES (?, ?, ?, ?, ?, DATE('now'))
         """, (job_id, client_id, contractor_id, amount, method))
         # Update contractor earnings
@@ -632,10 +649,11 @@ def contractor_jobs():
         FROM Job_Request jr
         LEFT JOIN Company c ON jr.companyID = c.companyID
         LEFT JOIN Client cli ON jr.clientID = cli.clientID
-        WHERE jr.status='Pending'
+        WHERE jr.contractorID IS NULL
         ORDER BY jr.date_posted DESC
     """)
     open_jobs = cur.fetchall()
+
 
     # My claimed jobs
     cur.execute("""
