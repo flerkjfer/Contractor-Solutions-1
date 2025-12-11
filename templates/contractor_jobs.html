@@ -3,7 +3,7 @@
   {% for job in open_jobs %}
     <li>
       Job #{{ job.jobID }} - {{ job.service }} with {{ job.clientName }}
-      <a href="{{ url_for('claim_job', job_id=job.jobID) }}">Claim Job</a>
+      <a href="/request_claim/{{ job.jobID }}">Request to Claim Job</a>
     </li>
   {% else %}
     <li>No open jobs available</li>
