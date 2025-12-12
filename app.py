@@ -365,15 +365,21 @@ def edit_profile():
 
 # ----- Companies -----
 @app.route("/companies")
-def list_companies():
-    if "user_id" not in session:
-        return redirect("/login")
+def companies():
     conn = get_db()
     cur = conn.cursor()
+
     cur.execute("SELECT * FROM Company")
     companies = cur.fetchall()
-    conn.close()
-    return render_template("companies.html", companies=companies, role=session["role"])
+
+    role = session.get("role")  # 'client' or 'contractor'
+
+    # contractors get management page
+    if role == "contractor":
+        return render_template("companies_manage.html", companies=companies)
+
+    # clients get read-only view
+    return render_template("companies_view.html", companies=companies)
 
 @app.route("/companies/add", methods=["POST"])
 def add_company():
@@ -392,14 +398,52 @@ def add_company():
 
 @app.route("/companies/delete/<int:company_id>")
 def delete_company(company_id):
-    if session.get("role") != "client":
-        return "Not allowed", 403
+    if session.get("role") != "contractor":
+        return "Forbidden", 403
+
     conn = get_db()
     cur = conn.cursor()
+
     cur.execute("DELETE FROM Company WHERE companyID=?", (company_id,))
     conn.commit()
-    conn.close()
+
     return redirect("/companies")
+
+@app.post("/companies/create")
+def create_company():
+    if session.get("role") != "contractor":
+        return "Forbidden", 403
+
+    name = request.form["name"]
+    service = request.form["serviceType"]
+    location = request.form["location"]
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        INSERT INTO Company (name, serviceType, location)
+        VALUES (?, ?, ?)
+    """, (name, service, location))
+
+    conn.commit()
+    return redirect("/companies")
+
+@app.route("/companies/<int:company_id>/jobs")
+def view_company_jobs(company_id):
+    conn = sqlite3.connect('project.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT jobID, service, status
+        FROM Job_Request
+        WHERE companyID = ?
+    """, (company_id,))
+    jobs = cursor.fetchall()
+
+    conn.close()
+    return render_template("company_jobs.html", jobs=jobs, company_id=company_id)
 
 # ----- Contractors -----
 @app.route("/contractors")

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Jobs Associated With This Company</h2>
+
+{% if jobs %}
+    <table border="1" cellpadding="5" cellspacing="0">
+        <tr>
+            <th>Job ID</th>
+            <th>Service</th>
+            <th>Status</th>
+        </tr>
+        {% for job in jobs %}
+        <tr>
+            <td>{{ job.jobID }}</td>
+            <td>{{ job.service }}</td>
+            <td>{{ job.status }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+{% else %}
+    <p>No jobs are associated with this company yet.</p>
+{% endif %}
+
+<br>
+<a href="/companies">Back to Companies</a>
+{% endblock %}
