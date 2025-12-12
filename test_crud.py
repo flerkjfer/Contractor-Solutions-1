@@ -1,8 +1,134 @@
 import unittest
 import sqlite3
+import os
 DB = "test_project.db"
 
+def init_test_db():
+    """Initialize the test database with all required tables"""
+    conn = sqlite3.connect(DB)
+    cur = conn.cursor()
+
+    # Users
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS User (
+        userID INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('contractor', 'client'))
+    );""")
+
+    # Companies
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS Company (
+        companyID INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        serviceType TEXT,
+        location TEXT
+    );""")
+
+    # Contractors
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS Contractor (
+        contractorID INTEGER PRIMARY KEY AUTOINCREMENT,
+        userID INTEGER UNIQUE NOT NULL,
+        companyID INTEGER,
+        service TEXT,
+        firstName TEXT NOT NULL,
+        lastName TEXT NOT NULL,
+        city TEXT,
+        state CHAR(2),
+        rating REAL,
+        earnings REAL DEFAULT 0,
+        FOREIGN KEY(userID) REFERENCES User(userID),
+        FOREIGN KEY(companyID) REFERENCES Company(companyID)
+    );""")
+
+    # Clients
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS Client (
+        clientID INTEGER PRIMARY KEY AUTOINCREMENT,
+        userID INTEGER UNIQUE NOT NULL,
+        firstName TEXT NOT NULL,
+        lastName TEXT NOT NULL,
+        address TEXT,
+        streetNumber TEXT,
+        streetName TEXT,
+        aptNumber TEXT,
+        city TEXT,
+        state CHAR(2),
+        zip TEXT,
+        FOREIGN KEY(userID) REFERENCES User(userID)
+    );""")
+
+    # Job Requests
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS Job_Request (
+        jobID INTEGER PRIMARY KEY AUTOINCREMENT,
+        clientID INTEGER NOT NULL,
+        contractorID INTEGER,
+        companyID INTEGER,
+        service TEXT,
+        status TEXT CHECK(status IN ('Pending','In Progress','Completed','Cancelled')) DEFAULT 'Pending',
+        date_posted DATE NOT NULL,
+        date_fulfilled DATE,
+        client_approval TEXT CHECK(client_approval IN ('Pending','Approved','Denied')) DEFAULT 'Pending',
+        FOREIGN KEY(clientID) REFERENCES Client(clientID),
+        FOREIGN KEY(contractorID) REFERENCES Contractor(contractorID),
+        FOREIGN KEY(companyID) REFERENCES Company(companyID)
+    );""")
+
+    # Transactions table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS Transactions (
+        transactionID INTEGER PRIMARY KEY AUTOINCREMENT,
+        jobID INTEGER NOT NULL,
+        clientID INTEGER NOT NULL,
+        contractorID INTEGER NOT NULL,
+        amount REAL NOT NULL,
+        method TEXT CHECK(method IN ('Credit Card','Debit Card','PayPal','Cash','Check')) NOT NULL,
+        date DATE NOT NULL,
+        FOREIGN KEY(jobID) REFERENCES Job_Request(jobID),
+        FOREIGN KEY(clientID) REFERENCES Client(clientID),
+        FOREIGN KEY(contractorID) REFERENCES Contractor(contractorID)
+    );""")
+
+    # Reviews table
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS Review (
+        reviewID INTEGER PRIMARY KEY AUTOINCREMENT,
+        jobID INTEGER NOT NULL,
+        clientID INTEGER NOT NULL,
+        contractorID INTEGER NOT NULL,
+        rating INTEGER CHECK(rating BETWEEN 1 AND 5),
+        comment TEXT,
+        date DATE NOT NULL,
+        FOREIGN KEY(jobID) REFERENCES Job_Request(jobID),
+        FOREIGN KEY(clientID) REFERENCES Client(clientID),
+        FOREIGN KEY(contractorID) REFERENCES Contractor(contractorID)
+    );""")
+
+    # Contractor claim requests table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS Contractor_Claim_Request (
+        requestID INTEGER PRIMARY KEY AUTOINCREMENT,
+        jobID INTEGER NOT NULL,
+        contractorID INTEGER NOT NULL,
+        status TEXT CHECK(status IN ('Pending', 'Accepted', 'Declined')) DEFAULT 'Pending',
+        date_requested DATE NOT NULL,
+        FOREIGN KEY(jobID) REFERENCES Job_Request(jobID),
+        FOREIGN KEY(contractorID) REFERENCES Contractor(contractorID)
+    );
+    """)
+
+    conn.commit()
+    conn.close()
+
 class TestCRUD(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        """Initialize the database once before all tests"""
+        init_test_db()
+
     def setUp(self):
         self.conn = sqlite3.connect(DB)
         self.conn.row_factory = sqlite3.Row
