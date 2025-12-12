@@ -1,9 +1,13 @@
 # Contractor-Solutions-1
 
-templates and app.py is the heart of the code. 
+The folder templates holds all site/html relevant code. 
 
-templates holds site(s) code
+app.py holds critical routing code and SQL code. 
 
-app.py holds SQL code
+run 
 
-run python3 app.py on the terminal to run locally 
+python3 app.py 
+
+on the terminal to run locally if desired
+
+We utilize Flask, a python web framework. And we utilize Render for live deployment. 

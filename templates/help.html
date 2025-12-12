@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Help</h2>
+
+<p>
+    Thank you for using Contractor Solutions!
+    This is the help page.  
+
+    You may begin by logging in or by registering!
+    To register, click on register and enter your user name and password (don't forget to store important passwords somewhere safe).
+
+    Select your role as a client or contractor, it depends on what you're looking for!
+    Looking for jobs? Register as Contractor. 
+    Looking for a solution? Register as a Customer. 
+
+
+</p>
+
+<h3>For Clients</h3>
+<ul>
+    <li><strong>Create a Job Request:</strong> Go to “Create New Job Request” from your dashboard. Fill in the service type, description, and details.</li>
+
+    <li><strong>View Your Existing Requests:</strong> Click “View My Job Requests” to see all open, in-progress, or completed jobs.</li>
+
+    <li><strong>Approve Contractor Requests:</strong> When a contractor wants to take your job, it will appear under “Pending Contractor Requests.”  
+        You can approve or reject them from your dashboard.</li>
+
+    <li><strong>Rate & Pay Contractors:</strong> After approving completion of a job acquired by a contractor, you can submit a rating and payment amount for the contractor.</li>
+</ul>
+
+<h3>For Contractors</h3>
+<ul>
+    <li><strong>View Available Jobs:</strong> Your dashboard lists all open jobs you can apply for.</li>
+
+    <li><strong>Request to Take a Job:</strong> Click “Request Job” on any available job.  
+        The client must approve before you can begin.</li>
+
+    <li><strong>View Your Earnings & Rating:</strong> Your dashboard shows your total earnings and average rating.</li>
+</ul>
+
+<h3>Common Questions</h3>
+<ul>
+    <li><strong>I don’t see any available jobs.</strong>  
+        This usually means all jobs are taken or completed. Check back later.</li>
+
+    <li><strong>I can't see job requests on my dashboard.</strong>  
+        Ensure you're logged in with the correct account type (Client vs Contractor).</li>
+</ul>
+
+<h3>Need More Help?</h3>
+<p>Contact support or check back here for more information.</p>
+
+
+<button onclick="window.history.back()">Go Back</button>
+{% endblock %}

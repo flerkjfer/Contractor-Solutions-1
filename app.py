@@ -204,6 +204,16 @@ def login():
         return "Invalid credentials"
     return render_template("login.html")
 
+@app.route("/help")
+def help_page():
+    return render_template("help.html")
+
+@app.route("/forgot")
+def forgotPasswordPage():
+    return render_template("fp.html")
+
+
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
