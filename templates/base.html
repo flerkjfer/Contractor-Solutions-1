@@ -7,7 +7,13 @@
     <nav>
         {% if session.user_id %}
             <a href="/dashboard">Dashboard</a> |
-            <a href="/companies">View Companies</a> |
+
+            {% if session.role == 'contractor' %}
+                <a href="/companies">View and Manage Companies</a> |
+            {% else %}
+                <a href="/companies">View Companies</a> |
+            {% endif %}
+
             <a href="/contractors">See all Contractors (Info and Ratings)</a> |
             <a href="/profile/edit">Edit Profile</a> |
             <a href="/logout">Logout</a>

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Manage Companies</h2>
+
+<form action="/companies/create" method="POST">
+    <input type="text" name="name" placeholder="Company Name" required>
+    <input type="text" name="serviceType" placeholder="Service Type" required>
+    <input type="text" name="location" placeholder="Location" required>
+    <button type="submit">Add Company</button>
+</form>
+
+<hr>
+
+<table border="1" cellpadding="5">
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Service Type</th>
+        <th>Location</th>
+        <th>Jobs</th>
+        <th>Delete</th>
+    </tr>
+
+    {% for c in companies %}
+    <tr>
+        <td>{{ c.companyID }}</td>
+        <td>{{ c.name }}</td>
+        <td>{{ c.serviceType }}</td>
+        <td>{{ c.location }}</td>
+        <td><a href="/companies/{{ c.companyID }}/jobs">View Associated Jobs</a></td>
+        <td><a href="/companies/delete/{{ c.companyID }}">Delete</a></td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}
