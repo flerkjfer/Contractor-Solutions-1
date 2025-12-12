@@ -398,10 +398,33 @@ def list_contractors():
         return redirect("/login")
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM Contractor")
+
+    # Fetch all contractors with average rating
+    cur.execute("""
+        SELECT ctr.*, 
+               IFNULL(AVG(r.rating), 0) AS avg_rating
+        FROM Contractor ctr
+        LEFT JOIN Review r ON ctr.contractorID = r.contractorID
+        GROUP BY ctr.contractorID
+    """)
     contractors = cur.fetchall()
+
+    # Fetch all reviews for all contractors
+    contractor_reviews = {}
+    cur.execute("""
+        SELECT r.contractorID, r.comment, r.rating, c.firstName || ' ' || c.lastName AS clientName
+        FROM Review r
+        JOIN Client c ON r.clientID = c.clientID
+    """)
+    for row in cur.fetchall():
+        contractor_reviews.setdefault(row["contractorID"], []).append({
+            "comment": row["comment"],
+            "rating": row["rating"],
+            "clientName": row["clientName"]
+        })
+
     conn.close()
-    return render_template("contractors.html", contractors=contractors)
+    return render_template("contractors.html", contractors=contractors, contractor_reviews=contractor_reviews)
 
 # -------------------------------
 # Job Requests

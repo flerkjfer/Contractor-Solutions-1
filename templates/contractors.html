@@ -4,17 +4,37 @@
 
 <table border="1" cellpadding="5" cellspacing="0">
     <tr>
-        <th>ID</th><th>First Name</th><th>Last Name</th><th>Service</th><th>City</th><th>State</th><th>Rating</th>
+        <th>ID</th><th>First Name</th><th>Last Name</th><th>Service</th><th>City</th><th>State</th><th>Avg Rating</th>
     </tr>
     {% for c in contractors %}
     <tr>
-        <td>{{ c['contractorID'] }}</td>
-        <td>{{ c['firstName'] }}</td>
-        <td>{{ c['lastName'] }}</td>
-        <td>{{ c['service'] }}</td>
-        <td>{{ c['city'] }}</td>
-        <td>{{ c['state'] }}</td>
-        <td>{{ c['rating'] or "N/A" }}</td>
+        <td>{{ c.contractorID }}</td>
+        <td>{{ c.firstName }}</td>
+        <td>{{ c.lastName }}</td>
+        <td>{{ c.service }}</td>
+        <td>{{ c.city }}</td>
+        <td>{{ c.state }}</td>
+        <td>{{ c.avg_rating or "N/A" }}</td>
+    </tr>
+
+    <!-- Reviews Section -->
+    <tr>
+        <td colspan="7">
+            <strong>Reviews:</strong>
+            <ul>
+                {% if contractor_reviews.get(c.contractorID) %}
+                    {% for r in contractor_reviews[c.contractorID] %}
+                    <li>
+                        <strong>{{ r.clientName }}:</strong>
+                        "{{ r.comment }}"  
+                        (Rating: {{ r.rating }}/5)
+                    </li>
+                    {% endfor %}
+                {% else %}
+                    <li>No reviews yet.</li>
+                {% endif %}
+            </ul>
+        </td>
     </tr>
     {% endfor %}
 </table>
