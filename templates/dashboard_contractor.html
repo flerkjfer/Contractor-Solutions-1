@@ -3,27 +3,8 @@
 <h2>Contractor Dashboard</h2>
 
 <p>Hello, <strong>{{ profile.firstName }} {{ profile.lastName }}</strong>!</p>
-<p><a href="{{ url_for('edit_profile') }}">Edit Profile</a></p>
-<p>Total Earnings: ${{ profile['earnings'] or 0 }}</p>
-<p>Average Rating: {{ profile['rating'] or 'No ratings yet' }}</p>
+<p style="margin-bottom:0;">Your Total Earnings: ${{ profile['earnings'] or 0 }}</p>
+<p style="margin-top:0;">Your Average Rating: {{ profile['rating'] or 'No ratings yet' }}</p>
 <a href="/dashboard/contractor/jobs">View My Jobs and Available Jobs to Pick Up</a>
-<p><a href="{{ url_for('list_companies') }}">View Companies</a></p>
-<p><a href="{{ url_for('list_contractors') }}">See Other Contractors</a></p>
-<p><a href="{{ url_for('logout') }}">Logout</a></p>
 
-<hr>
-<h3>Companies</h3>
-<table border="1">
-    <tr>
-        <th>ID</th><th>Name</th><th>Service Type</th><th>Location</th>
-    </tr>
-    {% for c in companies %}
-    <tr>
-        <td>{{ c.companyID }}</td>
-        <td>{{ c.name }}</td>
-        <td>{{ c.serviceType }}</td>
-        <td>{{ c.location }}</td>
-    </tr>
-    {% endfor %}
-</table>
 {% endblock %}
