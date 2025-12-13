@@ -268,6 +268,11 @@ def client_dashboard():
     cur.execute("SELECT * FROM Client WHERE userID=?", (user_id,))
     profile = cur.fetchone()
 
+    # If profile doesn't exist, redirect to profile creation/edit
+    if profile is None:
+        flash("Please complete your client profile first.", "warning")
+        return redirect("/profile/edit")
+
     # Companies
     cur.execute("SELECT * FROM Company")
     companies = cur.fetchall()
@@ -300,6 +305,13 @@ def contractor_dashboard():
     cur = conn.cursor()
     cur.execute("SELECT * FROM Contractor WHERE userID=?", (user_id,))
     profile = cur.fetchone()
+    
+    # If profile doesn't exist, redirect to profile creation/edit
+    if profile is None:
+        flash("Please complete your contractor profile first.", "warning")
+        conn.close()
+        return redirect("/profile/edit")
+    
     cur.execute("SELECT * FROM Company")
     companies = cur.fetchall()
     conn.close()
