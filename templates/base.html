@@ -1,43 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Contractor App</title>
     <meta charset="UTF-8">
-
-    <!-- Flash message styles -->
-    <style>
-    .flash-container {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 1000;
-    }
-
-    .alert {
-        padding: 12px 20px;
-        margin-bottom: 10px;
-        border-radius: 5px;
-        color: white;
-        font-weight: bold;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-        animation: slideIn 0.5s;
-        transition: opacity 0.5s ease, transform 0.5s ease;
-    }
-
-    .alert-success {
-        background-color: #28a745;
-    }
-
-    .alert-warning {
-        background-color: #ffc107;
-        color: black;
-    }
-
-    @keyframes slideIn {
-        from { opacity: 0; transform: translateY(-20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <nav>
@@ -60,7 +27,7 @@
             <a href="/forgot">Forgot Password</a>
         {% endif %}
     </nav>
-    <hr>
+
 
     <!-- Flash messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -88,6 +55,8 @@
       {% endif %}
     {% endwith %}
 
-    {% block content %}{% endblock %}
+    <main>
+      {% block content %}{% endblock %}
+    </main>
 </body>
 </html>
