@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, render_template, request, redirect, session, url_for, flash
 import sqlite3
 
 app = Flask(__name__)
@@ -511,6 +511,7 @@ def view_jobrequests():
     conn.close()
     return render_template("view_jobrequests.html", jobrequests=jobrequests, role="client")
 
+
 @app.route("/jobrequests/new", methods=["GET", "POST"])
 def create_jobrequest():
     if "user_id" not in session:
@@ -535,7 +536,9 @@ def create_jobrequest():
         """, (client_id, company_id, service))
         conn.commit()
         conn.close()
-        return redirect(url_for("view_jobrequests"))
+
+        flash("Job request posted successfully!", "success")  #
+        return redirect("/dashboard/client")  #
 
     cur.execute("SELECT * FROM Company")
     companies = cur.fetchall()
@@ -863,6 +866,7 @@ def request_claim(job_id):
 
     if existing:
         conn.close()
+        flash("You already requested this job.", "warning")  # Optional
         return redirect("/dashboard/contractor/jobs")
 
     # Insert new claim request
@@ -874,8 +878,8 @@ def request_claim(job_id):
     conn.commit()
     conn.close()
 
+    flash("Request sent successfully!", "success")  
     return redirect("/dashboard/contractor/jobs")
-
 
 @app.route("/approve_contractor/<int:job_id>/<int:contractor_id>")
 def approve_contractor(job_id, contractor_id):
